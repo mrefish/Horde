@@ -32,12 +32,9 @@ argparse_py = os.path.join(horde_root, 'argparse.py')  # For < 2.7 compat
 horde_py = os.path.join(horde_root, 'horde.py')
 
 
-def run(local_file, remote_file, hosts, torrent=None):
-    if not local_file and not torrent:
-        sys.exit(
-            'ERROR: Either local file or torrent file argument is required')
+def run(local_file, remote_file, hosts):
     start = time.time()
-    if local_file:
+    if not local_file.endswith('.torrent'):
         log.info("Spawning tracker...")
         t = threading.Thread(target=track)
         t.daemon = True
@@ -57,10 +54,6 @@ def run(local_file, remote_file, hosts, torrent=None):
             log.info("Executing: " + " ".join(args))
             subprocess.call(args)
             os.chdir(cwd)
-    elif torrent and os.path.isfile(torrent):
-        torrent_file = torrent
-    else:
-        sys.exit('ERROR: Invalid torrent file arg.')
     threads = []
     for host in hosts:
         td = threading.Thread(target=transfer, args=(
@@ -185,12 +178,12 @@ def hordemain():
     hosts = list(set(hosts))
     log.info("Running with options: %s" % opts)
     log.info("Running for hosts: %s" % hosts)
-    run(opts['local-file'], opts['remote-file'], hosts, torrent=opts['torrent'])
+    run(opts['local-file'], opts['remote-file'], hosts)
 
 
 def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
                   remote_path='/tmp/horde', data_file='./data',
-                  log_dir='/tmp/horde', hostlist=False, torrent=None):
+                  log_dir='/tmp/horde', hostlist=False):
     """Can include horde into existing python easier."""
     global opts
     opts['local-file'] = local_file
@@ -202,7 +195,6 @@ def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
     opts['data_file'] = data_file
     opts['log_dir'] = log_dir
     opts['hostlist'] = hostlist
-    opts['torrent'] = torrent
     hordemain()
 
 
@@ -210,8 +202,7 @@ def entry_point():
     global opts
     parser = argparse.ArgumentParser()
     parser.add_argument('local-file',
-                        help='Local file to upload',
-                        default=None)
+                        help='Local file to upload')
 
     parser.add_argument('remote-file',
                         help="Remote file destination")
@@ -250,10 +241,6 @@ def entry_point():
     parser.add_argument('--seed',
                         default=False,
                         help="Seed local file from torrent")
-
-    parser.add_argument('--torrent',
-                        default=None,
-                        help="Pass in existing torrent file")
 
     opts = vars(parser.parse_args())
 
