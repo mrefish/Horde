@@ -28,6 +28,7 @@ log.addHandler(ch)
 horde_root = os.path.dirname(os.path.realpath(__file__))
 bittornado_tgz = os.path.join(horde_root, 'bittornado.tar.gz')
 murderclient_py = os.path.join(horde_root, 'murder_client.py')
+argparse_py = os.path.join(horde_root, 'argparse.py')  # For < 2.7 compat
 horde_py = os.path.join(horde_root, 'horde.py')
 
 
@@ -91,6 +92,7 @@ def transfer(host, local_file, remote_target, retry=0):
         scp(host, bittornado_tgz, '%s/bittornado.tar.gz' % rp)
         ssh(host, "cd %s; tar zxvf bittornado.tar.gz > /dev/null" % rp)
         scp(host, murderclient_py, '%s/murder_client.py' % rp)
+        scp(host, argparse_py, '%s/argparse.py' % rp)
         scp(host, horde_py, '%s/horde.py' % rp)
     log.info("Copying %s to %s:%s" % (local_file, host, remote_file))
     scp(host, local_file, remote_file)
