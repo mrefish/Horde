@@ -34,34 +34,42 @@ horde_py = os.path.join(horde_root, 'horde.py')
 
 def run(local_file, remote_file, hosts):
     start = time.time()
-    if not local_file.endswith('.torrent'):
-        log.info("Spawning tracker...")
-        t = threading.Thread(target=track)
-        t.daemon = True
-        t.start()
-        local_host = (local_ip(), opts['port'])
-        log.info("Creating torrent (host %s:%s)..." % local_host)
-        torrent_file = mktorrent(local_file, '%s:%s' % local_host)
-        log.info("Seeding %s" % torrent_file)
-        s = threading.Thread(target=seed, args=(torrent_file, local_file,))
-        s.daemon = True
-        s.start()
-        log.info("Transferring")
-        if not os.path.isfile(bittornado_tgz):
-            cwd = os.getcwd()
-            os.chdir(horde_root)
-            args = ['tar', 'czf', 'bittornado.tar.gz', 'BitTornado']
-            log.info("Executing: " + " ".join(args))
-            subprocess.call(args)
-            os.chdir(cwd)
-    else:
-        torrent_file = local_file
+    log.info("Spawning tracker...")
+    t = threading.Thread(target=track)
+    t.daemon = True
+    t.start()
+    local_host = (local_ip(), opts['port'])
+    log.info("Creating torrent (host %s:%s)..." % local_host)
+    torrent_file = mktorrent(local_file, '%s:%s' % local_host)
+    log.info("Seeding %s" % torrent_file)
+    s = threading.Thread(target=seed, args=(torrent_file, local_file,))
+    s.daemon = True
+    s.start()
+    log.info("Transferring")
+    if not os.path.isfile(bittornado_tgz):
+        cwd = os.getcwd()
+        os.chdir(horde_root)
+        args = ['tar', 'czf', 'bittornado.tar.gz', 'BitTornado']
+        log.info("Executing: " + " ".join(args))
+        subprocess.call(args)
+        os.chdir(cwd)
     threads = []
     for host in hosts:
+        if remote_file == 'sr-mount':  # Grab sr path on host
+            command = "df -h |grep sr-mount|awk -F ' ' '{print $5}'|tr -d '\n'"
+            output = subprocess.Popen([
+                'ssh', '-o UserKnownHostsFile=/dev/null',
+                '-o ConnectTimeout=300', '-o ServerAliveInterval=60',
+                '-o TCPKeepAlive=yes', '-o LogLevel=quiet',
+                '-o StrictHostKeyChecking=no', host, command],
+                stdout=subprocess.PIPE).communicate()[0]
+            remote_path = output + '/' + local_file
+        else:
+            remote_path = remote_file
         td = threading.Thread(target=transfer, args=(
             host,
             torrent_file,
-            remote_file,
+            remote_path,
             opts['retry']))
         td.start()
         threads.append(td)
