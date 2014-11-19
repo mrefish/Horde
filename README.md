@@ -38,12 +38,12 @@ target destinations.
 
 ## Install
 
-git clone https://github.com/naterh/Horde
-cd Horde && sudo python setup.py install
+    git clone https://github.com/naterh/Horde
+    cd Horde && sudo python setup.py install
 
 or
 
-sudo pip install horde
+    sudo pip install horde
 
 ## Usage
 

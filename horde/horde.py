@@ -31,27 +31,35 @@ murderclient_py = os.path.join(horde_root, 'murder_client.py')
 horde_py = os.path.join(horde_root, 'horde.py')
 
 
-def run(local_file, remote_file, hosts):
+def run(local_file, remote_file, hosts, torrent_arg=None):
+    if not local_file and not torrent_arg:
+        sys.exit(
+            'ERROR: Either local file or torrent file argument is required')
     start = time.time()
-    log.info("Spawning tracker...")
-    t = threading.Thread(target=track)
-    t.daemon = True
-    t.start()
-    local_host = (local_ip(), opts['port'])
-    log.info("Creating torrent (host %s:%s)..." % local_host)
-    torrent_file = mktorrent(local_file, '%s:%s' % local_host)
-    log.info("Seeding %s" % torrent_file)
-    s = threading.Thread(target=seed, args=(torrent_file, local_file,))
-    s.daemon = True
-    s.start()
-    log.info("Transferring")
-    if not os.path.isfile(bittornado_tgz):
-        cwd = os.getcwd()
-        os.chdir(horde_root)
-        args = ['tar', 'czf', 'bittornado.tar.gz', 'BitTornado']
-        log.info("Executing: " + " ".join(args))
-        subprocess.call(args)
-        os.chdir(cwd)
+    if local_file:
+        log.info("Spawning tracker...")
+        t = threading.Thread(target=track)
+        t.daemon = True
+        t.start()
+        local_host = (local_ip(), opts['port'])
+        log.info("Creating torrent (host %s:%s)..." % local_host)
+        torrent_file = mktorrent(local_file, '%s:%s' % local_host)
+        log.info("Seeding %s" % torrent_file)
+        s = threading.Thread(target=seed, args=(torrent_file, local_file,))
+        s.daemon = True
+        s.start()
+        log.info("Transferring")
+        if not os.path.isfile(bittornado_tgz):
+            cwd = os.getcwd()
+            os.chdir(horde_root)
+            args = ['tar', 'czf', 'bittornado.tar.gz', 'BitTornado']
+            log.info("Executing: " + " ".join(args))
+            subprocess.call(args)
+            os.chdir(cwd)
+    elif torrent_arg and os.path.isfile(torrent_arg):
+        torrent_file = torrent_arg
+    else:
+        sys.exit('ERROR: Invalid torrent file arg.')
     threads = []
     for host in hosts:
         td = threading.Thread(target=transfer, args=(
@@ -175,12 +183,12 @@ def hordemain():
     hosts = list(set(hosts))
     log.info("Running with options: %s" % opts)
     log.info("Running for hosts: %s" % hosts)
-    run(opts['local-file'], opts['remote-file'], hosts)
+    run(opts['local-file'], opts['remote-file'], hosts, torrent_arg=opts['torrent_arg'])
 
 
 def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
                   remote_path='/tmp/horde', data_file='./data',
-                  log_dir='/tmp/horde', hostlist=False):
+                  log_dir='/tmp/horde', hostlist=False, torrent_arg=None):
     """Can include horde into existing python easier."""
     global opts
     opts['local-file'] = local_file
@@ -192,6 +200,7 @@ def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
     opts['data_file'] = data_file
     opts['log_dir'] = log_dir
     opts['hostlist'] = hostlist
+    opts['torrent_arg'] = torrent_arg
     hordemain()
 
 
@@ -199,7 +208,8 @@ def entry_point():
     global opts
     parser = argparse.ArgumentParser()
     parser.add_argument('local-file',
-                        help='Local file to upload')
+                        help='Local file to upload',
+                        default=None)
 
     parser.add_argument('remote-file',
                         help="Remote file destination")
@@ -238,6 +248,10 @@ def entry_point():
     parser.add_argument('--seed',
                         default=False,
                         help="Seed local file from torrent")
+
+    parser.add_argument('--torrent',
+                        default=None,
+                        help="Pass in existing torrent file")
 
     opts = vars(parser.parse_args())
 
