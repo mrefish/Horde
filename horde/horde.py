@@ -63,7 +63,7 @@ def run(local_file, remote_file, hosts):
                 '-o TCPKeepAlive=yes', '-o LogLevel=quiet',
                 '-o StrictHostKeyChecking=no', host, command],
                 stdout=subprocess.PIPE).communicate()[0]
-            remote_path = output + '/' + local_file
+            remote_path = output + '/' + os.path.basename(local_file)
         else:
             remote_path = remote_file
         td = threading.Thread(target=transfer, args=(
