@@ -32,8 +32,8 @@ argparse_py = os.path.join(horde_root, 'argparse.py')  # For < 2.7 compat
 horde_py = os.path.join(horde_root, 'horde.py')
 
 
-def run(local_file, remote_file, hosts, torrent_arg=None):
-    if not local_file and not torrent_arg:
+def run(local_file, remote_file, hosts, torrent=None):
+    if not local_file and not torrent:
         sys.exit(
             'ERROR: Either local file or torrent file argument is required')
     start = time.time()
@@ -57,8 +57,8 @@ def run(local_file, remote_file, hosts, torrent_arg=None):
             log.info("Executing: " + " ".join(args))
             subprocess.call(args)
             os.chdir(cwd)
-    elif torrent_arg and os.path.isfile(torrent_arg):
-        torrent_file = torrent_arg
+    elif torrent and os.path.isfile(torrent):
+        torrent_file = torrent
     else:
         sys.exit('ERROR: Invalid torrent file arg.')
     threads = []
@@ -185,12 +185,12 @@ def hordemain():
     hosts = list(set(hosts))
     log.info("Running with options: %s" % opts)
     log.info("Running for hosts: %s" % hosts)
-    run(opts['local-file'], opts['remote-file'], hosts, torrent_arg=opts['torrent_arg'])
+    run(opts['local-file'], opts['remote-file'], hosts, torrent=opts['torrent'])
 
 
 def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
                   remote_path='/tmp/horde', data_file='./data',
-                  log_dir='/tmp/horde', hostlist=False, torrent_arg=None):
+                  log_dir='/tmp/horde', hostlist=False, torrent=None):
     """Can include horde into existing python easier."""
     global opts
     opts['local-file'] = local_file
@@ -202,7 +202,7 @@ def run_with_opts(local_file, remote_file, hosts='', retry=0, port=8998,
     opts['data_file'] = data_file
     opts['log_dir'] = log_dir
     opts['hostlist'] = hostlist
-    opts['torrent_arg'] = torrent_arg
+    opts['torrent'] = torrent
     hordemain()
 
 
