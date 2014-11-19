@@ -54,6 +54,8 @@ def run(local_file, remote_file, hosts):
             log.info("Executing: " + " ".join(args))
             subprocess.call(args)
             os.chdir(cwd)
+    else:
+        torrent_file = local_file
     threads = []
     for host in hosts:
         td = threading.Thread(target=transfer, args=(
