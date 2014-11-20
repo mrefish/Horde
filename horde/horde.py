@@ -63,6 +63,8 @@ def run(local_file, remote_file, hosts):
                 '-o TCPKeepAlive=yes', '-o LogLevel=quiet',
                 '-o StrictHostKeyChecking=no', host, command],
                 stdout=subprocess.PIPE).communicate()[0]
+            if not str(output):
+                sys.exit('ERROR/FAIL: Unable to determine SR UUID')
             remote_path = output + '/' + os.path.basename(local_file)
         else:
             remote_path = remote_file
