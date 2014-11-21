@@ -32,6 +32,39 @@ argparse_py = os.path.join(horde_root, 'argparse.py')  # For < 2.7 compat
 horde_py = os.path.join(horde_root, 'horde.py')
 
 
+def retries(max_tries, delay=1, backoff=2, exceptions=(Exception,), hook=None):
+    """Function decorator implementing retrying logic.
+
+    delay: Sleep this many seconds * backoff * try number after failure
+    backoff: Multiply delay by this factor after each failure
+    exceptions: A tuple of exception classes; default (Exception,)
+    hook: A function with the signature myhook(tries_remaining, exception);
+          default None
+
+    The decorator will call the function up to max_tries times if it raises
+    an exception."""
+    def dec(func):
+        def f2(*args, **kwargs):
+            mydelay = delay
+            tries = range(max_tries)
+            tries.reverse()
+            for tries_remaining in tries:
+                try:
+                    return func(*args, **kwargs)
+                except exceptions as e:
+                    if tries_remaining > 0:
+                        if hook is not None:
+                            hook(func.__name__, tries_remaining, e, mydelay)
+                        time.sleep(mydelay)
+                        mydelay = mydelay * backoff
+                    else:
+                        raise
+                else:
+                    break
+        return f2
+    return dec
+
+
 def run(local_file, remote_file, hosts):
     start = time.time()
     log.info("Spawning tracker...")
@@ -56,16 +89,12 @@ def run(local_file, remote_file, hosts):
     threads = []
     for host in hosts:
         if remote_file == 'sr-mount':  # Grab sr path on host
-            command = "df -h |grep sr-mount|awk -F ' ' '{print $5}'|tr -d '\n'"
-            output = subprocess.Popen([
-                'ssh', '-o UserKnownHostsFile=/dev/null',
-                '-o ConnectTimeout=300', '-o ServerAliveInterval=60',
-                '-o TCPKeepAlive=yes', '-o LogLevel=quiet',
-                '-o StrictHostKeyChecking=no', host, command],
-                stdout=subprocess.PIPE).communicate()[0]
-            if not str(output):
-                sys.exit('ERROR/FAIL: Unable to determine SR UUID')
-            remote_path = output + '/' + os.path.basename(local_file)
+            try:
+                sr_uuid = get_sr_uuid(host)
+            except Exception:
+                print >> sys.stderr, ' FAIL: Unable to determine SR UUID for host %s' % host
+                continue  # Continue transferring to other hosts
+            remote_path = sr_uuid + '/' + os.path.basename(local_file)
         else:
             remote_path = remote_file
         td = threading.Thread(target=transfer, args=(
@@ -124,6 +153,21 @@ def transfer(host, local_file, remote_target, retry=0):
     return host
 
 
+@retries(3)
+def get_sr_uuid(host):
+    command = "df -h |grep sr-mount|awk -F ' ' '{print $5}'|tr -d '\n'"
+    output = subprocess.Popen([
+        'ssh', '-o UserKnownHostsFile=/dev/null',
+        '-o ConnectTimeout=300', '-o ServerAliveInterval=60',
+        '-o TCPKeepAlive=yes', '-o LogLevel=quiet',
+        '-o StrictHostKeyChecking=no', host, command],
+        stdout=subprocess.PIPE).communicate()[0]
+    if not str(output):
+        raise Exception('Unable to get host sr-uuid')
+    return str(output)
+
+
+@retries(3)
 def ssh(host, command):
     if not os.path.exists(opts['log_dir']):
         os.makedirs(opts['log_dir'])
@@ -142,6 +186,7 @@ def ssh(host, command):
     return result
 
 
+@retries(3)
 def scp(host, local_file, remote_file):
     return subprocess.call([
         'scp', '-o UserKnownHostsFile=/dev/null',
