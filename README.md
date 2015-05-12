@@ -11,7 +11,7 @@ its own (lightly modified) copy of BitTornado.
 ## Differences from Herd
 
 [Herd](https://github.com/russss/Herd) is a command line python client interface that uses eventlet
-and has to be ran from the command line.  This project also has limitations around large file transfers,
+and has to be run from the command line.  This project also has limitations around large file transfers,
 peer seeding and python integration.
 
 ## Differences from Murder
